@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 import openpyxl
-
+import yfinance as yf
 
 def leitura_arquivos(local):
     dfs = []
@@ -13,9 +13,18 @@ def leitura_arquivos(local):
             local_file = os.path.join(local, arquivo)
             df = pd.read_excel(local_file)
             dfs.append(df)
+    # Converta a coluna 'Data do Negócio' para o tipo datetime.date
+    df['Data do Negócio'] = pd.to_datetime(df['Data do Negócio'], format='%d/%m/%Y').dt.date
 
-    df = pd.concat(dfs).sort_values("Data do Negócio", ascending = True) #Ordena ativos por data
+    # Classifique o DataFrame com base na coluna 'Data do Negócio'
+    df = df.sort_values('Data do Negócio', ascending=True)
 
+
+    return df
+
+def padroniza_ticker(df, ticker = "Código de Negociação"):
+    df[ticker] = df[ticker].apply(lambda x : str(x)+".SA")
+    
     return df
 
 def obtem_tickers(df):
@@ -23,13 +32,18 @@ def obtem_tickers(df):
     return tickers
 
 def agrupa_valor(df):
-    data = df.groupby(["Código de Negociação"])["Preço"].agg(Média_Preço=("mean"))
-    data_1 = df.groupby(["Código de Negociação"])["Quantidade"].agg(Qti=("sum"))
+    data = df.groupby(["Código de Negociação"]).agg(Preço_Médio=("Preço", "mean"), Qti=("Quantidade", "sum")).reset_index()
+    data["Valor atual"] = data["Código de Negociação"].apply(lambda x : yf.Ticker(x).info["previousClose"])
+    data["Acumulado Investido"] = data["Preço_Médio"] * data["Qti"]
+    data["Acumulado Atual"] = data["Valor atual"] * data["Qti"]
+    data["Diferença investido"] = data["Acumulado Atual"] - data["Acumulado Investido"]
+
     data_2 = df.set_index(["Código de Negociação", "Data do Negócio"])["Valor"].groupby(level=0).cumsum().reset_index()
 
-    return pd.DataFrame(data), pd.DataFrame(data_1), pd.DataFrame(data_2)
+    return pd.DataFrame(data), pd.DataFrame(data_2)
 
 def remove_ticker(df, ticker: list):
     data = df[~df["Código de Negociação"].isin(ticker)]
     
     return data
+

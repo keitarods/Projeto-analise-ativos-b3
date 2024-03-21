@@ -1,6 +1,6 @@
 import streamlit as st
 import os
-from leitura import leitura_arquivos, obtem_tickers, agrupa_valor, remove_ticker
+from leitura import leitura_arquivos, obtem_tickers, agrupa_valor, remove_ticker, padroniza_ticker
 from st_aggrid import AgGrid
 from streamlit_pandas_profiling import st_profile_report
 import plotly.express as px
@@ -16,7 +16,9 @@ Essa é uma página voltada para verificar as suas movimentações na Bolsa B3
 df = leitura_arquivos("./data")
 
 #Removedor de ativos não desejados
-df = remove_ticker(df, list(["RBVA11", "ARCT11"]))
+df = remove_ticker(df, list(["RBVA11", "ARCT11", "NUBR33"]))
+
+df = padroniza_ticker(df)
 
 #Header
 st.subheader("Extato de compra e venda de ativos")
@@ -34,20 +36,17 @@ else:
 
 #Cria os agrupamentos por preço médio, quantidade de ativos, e acumulo dos ativos pelo tempo
 df_agrupa = agrupa_valor(df)
-col1, col2 = st.columns(2) 
-with col1:
-    st.subheader("Preço Médio por ativo")
-    st.dataframe(df_agrupa[0])
+#df_agrupa0 = pd.DataFrame(df_agrupa[0])
+#df_agrupa0 = acumulado(df_agrupa0)
 
-with col2:
-    st.subheader("Quantidade de ativos")
-    st.dataframe(df_agrupa[1])
+st.subheader("Preço Médio por ativo")
+st.dataframe(df_agrupa[0])
 
 st.subheader("Soma acumulativa")
-st.dataframe(df_agrupa[2])
+st.dataframe(df_agrupa[1])
 
 # Cria o gráfico com a progressão dos ativos em função do tempo
-fig = px.line(df_agrupa[2], x='Data do Negócio', y='Valor', color='Código de Negociação',
+fig = px.line(df_agrupa[1], x='Data do Negócio', y='Valor', color='Código de Negociação',
             title='Progressão dos Ativos em Função do Tempo',
             labels={'Data do Negócio': 'Data', 'Valor': 'Valor'},
             hover_data={'Data do Negócio': '|%B %d, %Y', 'Código de Negociação': True, 'Valor': ':.2f'})
